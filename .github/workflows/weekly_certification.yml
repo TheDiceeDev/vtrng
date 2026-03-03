@@ -1,0 +1,32 @@
+name: Weekly Certification
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Monday 6am UTC
+  workflow_dispatch:  # manual trigger
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install VTRNG + tools
+        run: |
+          pip install -e ".[dev]"
+          sudo apt-get install -y dieharder ent || true
+
+      - name: Run full certification
+        run: python -m vtrng certify --dieharder-mb 50
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: certification-report
+          path: vtrng_certification.json

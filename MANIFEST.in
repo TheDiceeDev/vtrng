@@ -1,0 +1,18 @@
+include LICENSE
+include README.md
+include CHANGELOG.md
+include CONTRIBUTING.md
+include SECURITY.md
+include pyproject.toml
+include setup.py
+
+recursive-include src/vtrng *.py *.c *.pyi
+recursive-include tests *.py
+recursive-include docs *.md
+recursive-include scripts *.sh
+recursive-include external *.c
+
+global-exclude __pycache__
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.egg-info

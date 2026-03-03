@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        exclude:
+          # Skip some combos to save CI time
+          - os: macos-latest
+            python: "3.9"
+          - os: windows-latest
+            python: "3.9"
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install VTRNG
+        run: pip install -e ".[dev]"
+
+      - name: Run basic tests
+        run: python tests/test_basic.py
+
+      - name: Run NIST tests
+        run: python tests/test_nist.py
+
+      - name: Run SP 800-22 tests
+        run: python tests/test_sp800_22.py
+
+      - name: Run CLI demo
+        run: python -m vtrng demo
+
+      - name: Run benchmark
+        run: python -m vtrng bench
+
+  # Test C extension specifically
+  c-extension:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build with C extension
+        run: |
+          pip install setuptools wheel
+          python setup.py build_ext --inplace
+          pip install -e .
+
+      - name: Verify C extension loaded
+        run: |
+          python -c "
+          from vtrng import VTRNG
+          rng = VTRNG(paranoia=1, verbose=True)
+          print(rng.random_hex(32))
+          "
+
+  # Statistical certification (longer)
+  certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: SP 800-22 Statistical Tests
+        run: python -m vtrng test --size 250
+
+      - name: SP 800-90B Entropy Assessment
+        run: python -m vtrng assess
+
+      - name: Install ENT
+        run: sudo apt-get install -y ent || true
+
+      - name: Run ENT (if available)
+        run: |
+          python -m vtrng export -o /tmp/vtrng_ent.bin --size 1
+          ent /tmp/vtrng_ent.bin || true

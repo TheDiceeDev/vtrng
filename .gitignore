@@ -1,0 +1,10 @@
+src/vtrng/_vtrng_fast.cp313-win_amd64.pyd
+*.egg-info
+build/
+vtrng-venv/
+vtrng-venv-linux/
+dist/
+*.egg
+*.pyd
+__pycache__/
+*.so
