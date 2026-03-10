@@ -1,5 +1,5 @@
 """
-VTRNG Binary Exporter — Generate raw bytes for external test tools.
+VTRNG Binary Exporter - Generate raw bytes for external test tools.
 
 Outputs:
   - Raw binary files for dieharder, ENT, TestU01

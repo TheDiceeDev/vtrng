@@ -6,7 +6,7 @@
 If you discover a security vulnerability in VTRNG, please report it
 responsibly:
 
-**Email:** security@vtrng.dev (or open a private advisory on GitHub)
+**Email:** thediceedeveloper@gmail.com (or open a private advisory on GitHub)
 
 **Do NOT** open a public issue for security vulnerabilities.
 
@@ -26,8 +26,8 @@ Security-relevant issues include:
 
 ## Known Limitations
 
-- VTRNG is **not constant-time** — don't use it where timing leaks matter
-- VM/emulator environments may have reduced entropy — health monitor warns
+- VTRNG is **not constant-time** - don't use it where timing leaks matter
+- VM/emulator environments may have reduced entropy - health monitor warns
 - Pure Python mode has lower timing resolution than C extension
 - Not yet independently audited (planned for v1.0)
 

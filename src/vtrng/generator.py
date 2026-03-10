@@ -7,10 +7,12 @@ import math
 import time
 from collections import Counter
 from typing import List, Optional, Sequence, TypeVar
+import atexit
 
 from .sources import CPUJitterSource, ThreadRaceSource, MemoryTimingSource
 from .conditioning import EntropyConditioner
 from .pool import EntropyPool
+from .seedfile import SeedFile
 from .health import HealthMonitor
 from .collector import EntropyCollector
 from .nist import NISTEntropyAssessment
@@ -51,14 +53,28 @@ class VTRNG:
         background: bool = True,
         verbose: bool = False,
         startup_assessment: bool = True,
+        seed_file: bool = True,
+        extraction_policy: str = "warn",
+        reseed_interval: int = 50,
     ):
         self.paranoia = paranoia
         self._verbose = verbose
+        self._reseed_interval = reseed_interval
+
+        from .pool import ExtractionPolicy
+        policy_map = {
+            "warn": ExtractionPolicy.WARN,
+            "block": ExtractionPolicy.BLOCK,
+            "raise": ExtractionPolicy.RAISE,
+            "unlimited": ExtractionPolicy.UNLIMITED,
+        }
 
         # Components
         self._jitter = CPUJitterSource()
         self._conditioner = EntropyConditioner()
-        self._pool = EntropyPool()
+        self._pool = EntropyPool( 
+            policy=policy_map.get(extraction_policy, ExtractionPolicy.WARN)
+        )
         self._health = HealthMonitor(assessed_entropy=1.0)
 
         self._memory: Optional[MemoryTimingSource] = None
@@ -78,10 +94,21 @@ class VTRNG:
             from . import _vtrng_fast
             self._fast = _vtrng_fast
             if verbose:
-                print("[VTRNG] C extension loaded (RDTSC) ⚡")
+                pinfo = _vtrng_fast.platform_info()
+                print(f"[VTRNG] C extension loaded (RDTSC) "
+                    f"({pinfo.get('timer', 'unknown')}) ⚡")
         except ImportError:
             if verbose:
                 print("[VTRNG] Pure Python mode")
+
+        # Load seed file if available (defense in depth)
+        self._seedfile = SeedFile() if seed_file else None
+        if self._seedfile:
+            old_seed = self._seedfile.load()
+            if old_seed:
+                self._pool.mix_in(old_seed)
+                if verbose:
+                    print("[VTRNG] Previous session seed loaded 🔑")
 
         # ── Startup ──
         if verbose:
@@ -109,8 +136,10 @@ class VTRNG:
                 print("[VTRNG] Background collector started 🔄")
 
         if verbose:
-            print(f"[VTRNG] Ready — assessed entropy: "
+            print(f"[VTRNG] Ready - assessed entropy: "
                   f"{self._assessed_entropy:.2f} bits/sample 🎲\n")
+
+        atexit.register(self._cleanup)
 
     # ── Internal ────────────────────────────────────────
 
@@ -126,15 +155,25 @@ class VTRNG:
             samples = self._fast.sample(512)
             # C extension returns variable-length list (discards migrated)
             if len(samples) < 100:
-                # Too many discards — fall back to Python
+                # Too many discards - fall back to Python
                 samples = self._jitter.sample(512)
         else:
             samples = self._jitter.sample(512)
 
         cond = self._conditioner.condition(samples)
         if cond:
-            # Estimate entropy: assessed_entropy bits per sample,
-            # conditioned through SHA-512
+            # Conservative entropy estimate:
+            # assessed_entropy = bits per RAW sample (from NIST assessment)
+            # × 0.5 additional safety factor
+            #
+            # Why 0.5: The NIST assessment already gives a conservative
+            # min-entropy across 9 estimators. We halve it again because:
+            #   1. Conditioning may not be perfectly efficient
+            #   2. Samples may have inter-dependencies the estimators missed
+            #   3. We'd rather UNDERCOUNT entropy than OVERCOUNT
+            #
+            # This means our entropy budget is pessimistic - the pool
+            # likely has MORE entropy than we claim. This is the safe direction.
             estimated_bits = self._assessed_entropy * len(samples) * 0.5
             self._pool.mix_in(cond, estimated_entropy_bits=estimated_bits)
 
@@ -180,6 +219,14 @@ class VTRNG:
             f"  Last report: {report}\n"
             f"  System may not provide sufficient timing jitter."
         )
+    
+    def _save_seed(self):
+        """Save current pool state for next startup."""
+        if self._seedfile:
+            try:
+                self._seedfile.save(bytes(self._pool.pool))
+            except Exception:
+                pass
 
     def _run_startup_assessment(self):
         """
@@ -224,14 +271,15 @@ class VTRNG:
         # Check background collector health
         if self._collector is not None and not self._collector.healthy:
             raise HealthCheckError(
-                "[VTRNG] Background entropy collector has failed permanently. "
-                "Entropy source may be degraded. "
-                f"Stats: {self._collector.failure_stats}"
+                "[VTRNG] Background entropy collector has failed permanently."
             )
 
         self._extractions += 1
-        if self._collector is None or self._extractions % 100 == 0:
+
+        # Reseed based on configurable interval
+        if self._collector is None or self._extractions % self._reseed_interval == 0:
             self._collect_once()
+
         return self._pool.extract(n)
 
     def random_int(self, lo: int, hi: int) -> int:
@@ -380,6 +428,36 @@ class VTRNG:
         print(f"\n  Paranoia level:     {self.paranoia}")
         print("=" * 70)
 
-    def __del__(self):
-        if hasattr(self, '_collector') and self._collector is not None:
+    def diagnostics(self, test_size: int = 10000) -> dict:
+        """Return diagnostic data as dict (for programmatic use)."""
+        samples = self._jitter.sample(1024)
+        conditioned = self._conditioner.condition(samples)
+        passed, health_report = self._health.quick_check(samples, conditioned)
+
+        data = self.random_bytes(test_size)
+        bc = Counter(data)
+        ones = sum(bin(b).count('1') for b in data)
+        total_bits = len(data) * 8
+
+        return {
+            'health_passed': passed,
+            'health': health_report,
+            'assessed_entropy': self._assessed_entropy,
+            'unique_bytes': len(bc),
+            'bit_ratio': ones / total_bits,
+            'pool': self._pool.stats,
+            'paranoia': self.paranoia,
+        }
+
+    def _cleanup(self):
+        """Called at interpreter shutdown"""
+        self._save_seed()
+        if self._collector is not None:
             self._collector.stop()
+
+    def __del__(self):
+        # Keep us backup but atexit is the primary mechanism
+        try:
+            self._cleanup()
+        except Exception:
+            pass

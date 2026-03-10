@@ -8,3 +8,4 @@ dist/
 *.pyd
 __pycache__/
 *.so
+.vscode/

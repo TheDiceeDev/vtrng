@@ -46,7 +46,7 @@ rng.uuid4()                   # random UUID v4
 rng.shuffle([1, 2, 3, 4, 5])  # Fisher-Yates shuffle
 rng.dice(20, 4)               # roll 4d20
 
-
+```
 
 
 

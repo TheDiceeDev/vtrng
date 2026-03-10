@@ -1,5 +1,5 @@
 """
-VTRNG Health Monitor — High-level wrapper around NIST SP 800-90B tests.
+VTRNG Health Monitor - High-level wrapper around NIST SP 800-90B tests.
 """
 
 import math
@@ -17,11 +17,11 @@ class HealthMonitor:
     """
     Two-tier health monitoring:
     
-    Tier 1 — CONTINUOUS (every sample):
+    Tier 1 - CONTINUOUS (every sample):
         Repetition Count Test  (§4.4.1)
         Adaptive Proportion Test (§4.4.2)
         
-    Tier 2 — PERIODIC (on demand):
+    Tier 2 - PERIODIC (on demand):
         Full 9-estimator entropy assessment (§6.3)
         Byte distribution χ² test
         Bit balance test

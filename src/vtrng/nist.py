@@ -1,5 +1,5 @@
 """
-VTRNG — NIST SP 800-90B Entropy Estimation & Health Testing
+VTRNG - NIST SP 800-90B Entropy Estimation & Health Testing
 
 Implements:
   Section 4.4.1  Repetition Count Test (continuous)
@@ -15,7 +15,7 @@ Implements:
   Section 6.3.10 LZ78Y Predictor
 
 The final min-entropy estimate is the MINIMUM across all estimators.
-This is the most conservative (paranoid) approach — exactly what
+This is the most conservative (paranoid) approach - exactly what
 a true random generator needs.
 
 Reference: https://csrc.nist.gov/publications/detail/sp/800-90b/final
@@ -113,7 +113,7 @@ def _prediction_to_entropy(correct: int, total: int) -> float:
 
 class RepetitionCountTest:
     """
-    NIST SP 800-90B §4.4.1 — Continuous health test.
+    NIST SP 800-90B §4.4.1 - Continuous health test.
 
     Fires if the source outputs the same value C times in a row,
     where C = 1 + ⌈-log₂(α) / H⌉.
@@ -155,7 +155,7 @@ class RepetitionCountTest:
 
 class AdaptiveProportionTest:
     """
-    NIST SP 800-90B §4.4.2 — Continuous health test.
+    NIST SP 800-90B §4.4.2 - Continuous health test.
 
     Sliding window of W samples. If the first sample's value appears
     ≥ C times in the rest of the window → fail.
@@ -201,7 +201,7 @@ class AdaptiveProportionTest:
 
 def est_mcv(samples: List[int]) -> float:
     """
-    §6.3.1 — Simplest estimator.
+    §6.3.1 - Simplest estimator.
     H_min = -log₂(p_upper) where p = freq(mode) / n.
     """
     n = len(samples)
@@ -218,7 +218,7 @@ def est_mcv(samples: List[int]) -> float:
 
 def est_collision(samples: List[int]) -> float:
     """
-    §6.3.2 — Measures mean distance between value re-occurrences.
+    §6.3.2 - Measures mean distance between value re-occurrences.
     Shorter collision distance → lower entropy.
     """
     n = len(samples)
@@ -260,7 +260,7 @@ def est_collision(samples: List[int]) -> float:
 
 def est_markov(samples: List[int]) -> float:
     """
-    §6.3.3 — First-order Markov chain on binarized data.
+    §6.3.3 - First-order Markov chain on binarized data.
     Finds the most-probable 128-bit path through the chain.
     """
     bits = _binarize(samples)
@@ -308,7 +308,7 @@ def est_markov(samples: List[int]) -> float:
 
 def est_compression(samples: List[int], d: int = 6) -> float:
     """
-    §6.3.4 — Maurer's Universal Statistical Test variant.
+    §6.3.4 - Maurer's Universal Statistical Test variant.
     v0.5.1: Better handling of small sample sizes.
     """
     k = 1 << d
@@ -325,12 +325,12 @@ def est_compression(samples: List[int], d: int = 6) -> float:
     if K < 50:
         return est_mcv(samples)
 
-    # Phase 1: initialization — record positions
+    # Phase 1: initialization - record positions
     last_seen: Dict[int, int] = {}
     for i in range(Q):
         last_seen[quant[i]] = i
 
-    # Phase 2: test — measure log-distances
+    # Phase 2: test - measure log-distances
     log_vals: List[float] = []
     for i in range(Q, n):
         sym = quant[i]
@@ -360,7 +360,7 @@ def est_compression(samples: List[int], d: int = 6) -> float:
 
 def est_t_tuple(samples: List[int], max_t: int = 6) -> float:
     """
-    §6.3.5 — For t = 1..max_t, find the most common t-tuple.
+    §6.3.5 - For t = 1..max_t, find the most common t-tuple.
     Entropy per symbol = -log₂(max_frequency) / t.
     """
     quant = _quantize(samples, bits=8)
@@ -388,7 +388,7 @@ def est_t_tuple(samples: List[int], max_t: int = 6) -> float:
 
 def est_multi_mcw(samples: List[int]) -> float:
     """
-    §6.3.7 — Predict next value as mode of preceding window.
+    §6.3.7 - Predict next value as mode of preceding window.
     v0.5.1: Skip windows larger than sample count.
     """
     quant = _quantize(samples, bits=8)
@@ -425,7 +425,7 @@ def est_multi_mcw(samples: List[int]) -> float:
 
 def est_lag(samples: List[int], max_lag: int = 128) -> float:
     """
-    §6.3.8 — Predict sample[i] = sample[i-d] for lag d=1..D.
+    §6.3.8 - Predict sample[i] = sample[i-d] for lag d=1..D.
     v0.5.1: Limit max_lag to ensure enough predictions per lag.
     """
     quant = _quantize(samples, bits=8)
@@ -460,7 +460,7 @@ def est_lag(samples: List[int], max_lag: int = 128) -> float:
 
 def est_multi_mmc(samples: List[int], max_order: int = 16) -> float:
     """
-    §6.3.9 — Build Markov models of order d=1..D, predict from
+    §6.3.9 - Build Markov models of order d=1..D, predict from
     most-seen next-value for each context.
     
     v0.5.1 FIXES:
@@ -479,8 +479,10 @@ def est_multi_mmc(samples: List[int], max_order: int = 16) -> float:
     # ── KEY FIX: limit order so model can't memorize ──
     # Need at least alphabet_size^d * 5 samples to populate model
     # Solve: d <= log(n/5) / log(alphabet_size)
-    max_allowed = max(1, int(math.log(n / 10.0) / math.log(alphabet_size)))
+    max_allowed = max(1, int(math.log(n / 10.0, 2) / math.log(alphabet_size, 2)))
     max_order = min(max_order, max_allowed, n // 10)
+    if max_order < 1:
+        return est_mcv(samples)
 
     split = n // 2
     if split < 50:
@@ -519,7 +521,7 @@ def est_multi_mmc(samples: List[int], max_order: int = 16) -> float:
             best_total = total
 
     if best_total < 50:
-        # Not enough data for Markov prediction — fall back
+        # Not enough data for Markov prediction - fall back
         return est_mcv(samples)
 
     return _prediction_to_entropy(best_correct, best_total)
@@ -531,7 +533,7 @@ def est_multi_mmc(samples: List[int], max_order: int = 16) -> float:
 
 def est_lz78y(samples: List[int], max_ctx: int = 16) -> float:
     """
-    §6.3.10 — LZ78-style dictionary predictor.
+    §6.3.10 - LZ78-style dictionary predictor.
     v0.5.1: Require minimum context observations + minimum predictions.
     """
     quant = _quantize(samples, bits=8)
@@ -696,7 +698,7 @@ class NISTEntropyAssessment:
         return {
             'estimators': results,
             'min_entropy': min_h,
-            'passed': min_h > 0.1 and len(estimates) >= 3,
+            'passed': min_h > 0.5 and len(estimates) >= 3,
             'sample_count': len(samples),
             'unique_values': len(set(samples)),
             'estimators_run': len(estimates),

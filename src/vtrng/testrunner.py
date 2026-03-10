@@ -1,5 +1,5 @@
 """
-VTRNG Test Runner — Orchestrates external statistical test suites.
+VTRNG Test Runner - Orchestrates external statistical test suites.
 
 Supports:
   - dieharder (if installed)
@@ -84,7 +84,7 @@ class TestRunner:
 
     def run_dieharder(
         self,
-        size_mb: float = 20.0,
+        size_mb: float = 2048.0,
         tests: str = '-a',
     ) -> Dict:
         """
@@ -110,14 +110,14 @@ class TestRunner:
 
         # Run dieharder
         print(f"\n  Running: dieharder {tests} -g 201 -f {data_file}")
-        print("  (This may take several minutes...)\n")
+        print("  (This may take several minutes or hours depending on your CPU. Grab a coffee...)\n")
 
         try:
             result = subprocess.run(
                 ['dieharder', tests, '-g', '201', '-f', data_file],
                 capture_output=True,
                 text=True,
-                timeout=3600,  # 1 hour max
+                # timeout=7200,  # 2 hour max
             )
 
             output = result.stdout

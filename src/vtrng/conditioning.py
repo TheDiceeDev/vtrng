@@ -1,5 +1,5 @@
 """
-VTRNG Conditioning — Clean raw noisy samples into uniform random bits.
+VTRNG Conditioning - Clean raw noisy samples into uniform random bits.
 Two-stage pipeline: Von Neumann debiasing → SHA-512 compression.
 """
 

@@ -1,5 +1,5 @@
 """
-VTRNG — NIST SP 800-22 Statistical Test Suite for Random Number Generators
+VTRNG - NIST SP 800-22 Statistical Test Suite for Random Number Generators
 
 This is DIFFERENT from SP 800-90B (which tests entropy sources).
 SP 800-22 tests whether the OUTPUT is statistically indistinguishable
@@ -142,7 +142,7 @@ def _chi2_pvalue(chi2: float, dof: int) -> float:
 
 def test_frequency(data: bytes) -> Dict:
     """
-    SP 800-22 §2.1 — The most fundamental test.
+    SP 800-22 §2.1 - The most fundamental test.
     
     Counts 1s and 0s. If random, should be approximately equal.
     Computes S_n = |sum(2*bit_i - 1)| / sqrt(n)
@@ -179,7 +179,7 @@ def test_frequency(data: bytes) -> Dict:
 
 def test_block_frequency(data: bytes, block_size: int = 128) -> Dict:
     """
-    SP 800-22 §2.2 — Divide into M-bit blocks. Count 1s in each.
+    SP 800-22 §2.2 - Divide into M-bit blocks. Count 1s in each.
     Each block should have ~M/2 ones. Chi-squared test on proportions.
     """
     bits = _bytes_to_bits(data)
@@ -215,7 +215,7 @@ def test_block_frequency(data: bytes, block_size: int = 128) -> Dict:
 
 def test_runs(data: bytes) -> Dict:
     """
-    SP 800-22 §2.3 — Counts runs (consecutive identical bits).
+    SP 800-22 §2.3 - Counts runs (consecutive identical bits).
     Too many or too few runs indicates non-randomness.
     
     Pre-test: must pass frequency test (|π - 0.5| < 2/√n).
@@ -267,7 +267,7 @@ def test_runs(data: bytes) -> Dict:
 
 def test_longest_run(data: bytes) -> Dict:
     """
-    SP 800-22 §2.4 — In blocks of M bits, find the longest run of 1s.
+    SP 800-22 §2.4 - In blocks of M bits, find the longest run of 1s.
     Compare distribution of longest runs to expected via chi-squared.
     
     Parameters from NIST SP 800-22 Rev 1a Table 2.4:
@@ -362,7 +362,7 @@ def test_longest_run(data: bytes) -> Dict:
 
 def test_matrix_rank(data: bytes) -> Dict:
     """
-    SP 800-22 §2.5 — Form 32×32 binary matrices from the sequence.
+    SP 800-22 §2.5 - Form 32×32 binary matrices from the sequence.
     Check distribution of matrix ranks.
     Random → most matrices are full rank (32).
     """
@@ -453,7 +453,7 @@ def _gf2_rank(matrix: List[List[int]], rows: int, cols: int) -> int:
 
 def test_dft(data: bytes) -> Dict:
     """
-    SP 800-22 §2.6 — Apply DFT to detect periodic patterns.
+    SP 800-22 §2.6 - Apply DFT to detect periodic patterns.
     Count peaks above threshold T = sqrt(n * ln(1/0.05)).
     95% of peaks should be below T.
     
@@ -505,7 +505,7 @@ def test_dft(data: bytes) -> Dict:
 
 def test_universal(data: bytes) -> Dict:
     """
-    SP 800-22 §2.9 — Maurer's Universal Test.
+    SP 800-22 §2.9 - Maurer's Universal Test.
     Measures compressibility. Random data is incompressible.
     """
     bits = _bytes_to_bits(data)
@@ -588,7 +588,7 @@ def test_universal(data: bytes) -> Dict:
 
 def test_serial(data: bytes, m: int = 8) -> Dict:
     """
-    SP 800-22 §2.11 — Counts frequency of all 2^m overlapping
+    SP 800-22 §2.11 - Counts frequency of all 2^m overlapping
     m-bit patterns. Random data has uniform pattern distribution.
     """
     bits = _bytes_to_bits(data)
@@ -641,7 +641,7 @@ def test_serial(data: bytes, m: int = 8) -> Dict:
 
 def test_approximate_entropy(data: bytes, m: int = 8) -> Dict:
     """
-    SP 800-22 §2.12 — Compares frequency of m-bit and (m+1)-bit
+    SP 800-22 §2.12 - Compares frequency of m-bit and (m+1)-bit
     overlapping patterns. Random → ApEn ≈ ln(2).
     """
     bits = _bytes_to_bits(data)
@@ -690,7 +690,7 @@ def test_approximate_entropy(data: bytes, m: int = 8) -> Dict:
 
 def test_cumulative_sums(data: bytes) -> Dict:
     """
-    SP 800-22 §2.13 — Random walk test.
+    SP 800-22 §2.13 - Random walk test.
 
     Convert bits to ±1, compute cumulative sum S.
     z = max|S_k| over all k.
@@ -775,7 +775,7 @@ def _normal_cdf(x: float) -> float:
 
 
 # ================================================================
-#  Test 11: Byte Distribution Test (bonus — not in 800-22)
+#  Test 11: Byte Distribution Test (bonus - not in 800-22)
 # ================================================================
 
 def test_byte_distribution(data: bytes) -> Dict:
@@ -926,7 +926,7 @@ class SP800_22Suite:
         if result['all_passed']:
             print("  ✅ OUTPUT IS STATISTICALLY INDISTINGUISHABLE FROM RANDOM")
         else:
-            print("  ❌ SOME TESTS FAILED — investigate source quality")
+            print("  ❌ SOME TESTS FAILED - investigate source quality")
 
         print("━" * 72)
         return result

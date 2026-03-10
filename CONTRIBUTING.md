@@ -35,26 +35,26 @@ make test
 ```
 
 
-Areas We Need Help
-🔴 High Priority
-ARM/Apple Silicon optimization — CNTVCT_EL0 timing
-Windows high-resolution timer — QueryPerformanceCounter
-VM detection — auto-detect degraded environments
-🟡 Medium Priority
-New entropy sources — GPU timing, disk I/O jitter, network jitter
-FIPS 140-3 alignment — documentation and testing
-Async API — await rng.random_bytes(32)
-🟢 Nice to Have
-WebAssembly port — VTRNG in the browser
-Rust port — for embedded/systems use
-Benchmarks — more platforms, more CPUs
-Code Standards
-Type hints on all public functions
-Docstrings with explanation of the physics/math
-Tests for both positive cases (good data passes) and negative (bad data fails)
-No external dependencies in core (only stdlib)
+## Areas We Need Help
+### 🔴 High Priority
+- ARM/Apple Silicon optimization - CNTVCT_EL0 timing
+- Windows high-resolution timer - QueryPerformanceCounter
+- VM detection - auto-detect degraded environments
+### 🟡 Medium Priority
+- New entropy sources - GPU timing, disk I/O jitter, network jitter
+- FIPS 140-3 alignment - documentation and testing
+- Async API - await rng.random_bytes(32)
+### 🟢 Nice to Have
+- WebAssembly port - VTRNG in the browser
+- Rust port — for embedded/systems use
+- Benchmarks - more platforms, more CPUs
+- Code Standards
+- Type hints on all public functions
+- Docstrings with explanation of the physics/math
+- Tests for both positive cases (good data passes) and negative (bad data fails)
+- No external dependencies in core (only stdlib)
 
 
-Security
+## Security
 If you find a security vulnerability, DO NOT open a public issue.
-See SECURITY.md.
+See [SECURITY.md](SECURITY.md).

@@ -1,5 +1,5 @@
 """
-VTRNG Entropy Sources v0.5.1 — Hardened
+VTRNG Entropy Sources v0.5.1 - Hardened
 Changes:
   - Handles -1 (invalid/migrated) samples from C extension
   - Native thread race via C extension (bypasses GIL)
@@ -116,7 +116,7 @@ class ThreadRaceSource:
 
     def _sample_native(self, rounds: int) -> List[int]:
         """
-        Native thread race — bypasses GIL completely.
+        Native thread race - bypasses GIL completely.
         Two OS threads race on a shared int64 with no synchronization.
         Genuine concurrent memory access with hardware-level
         non-determinism.
@@ -125,7 +125,7 @@ class ThreadRaceSource:
 
     def _sample_python(self, rounds: int) -> List[int]:
         """
-        Python thread race — limited by GIL.
+        Python thread race - limited by GIL.
         Still captures OS scheduler jitter (when GIL switches
         between threads), but less entropy per sample.
         """
@@ -156,24 +156,36 @@ class ThreadRaceSource:
 
 class MemoryTimingSource:
     """
-    Cache/memory timing entropy source.
-    Walks a 4MB buffer with prime strides to defeat the prefetcher.
+    Cache/memory/TLB timing entropy source.
+    
+    v0.5.1: Strides now force 4KB page boundary crossings
+    to trigger TLB misses, which have high timing variance
+    due to page table walks in DRAM.
     """
 
-    PRIMES = [4099, 4111, 4127, 4129, 4133, 4139, 4153, 4157]
+    # Primes larger than 4096 ensure every step crosses a page boundary
+    PAGE_CROSSING_PRIMES = [4099, 4111, 4127, 4129, 4133, 4139, 4153, 4157]
 
     def __init__(self):
+        # 4MB buffer - larger than most L2 caches
         self.buf = bytearray(4 * 1024 * 1024)
         self._idx = 0
+        # Pre-fill with pattern so reads return varied values
+        for i in range(len(self.buf)):
+            self.buf[i] = (i * 7 + 13) & 0xFF
 
     def sample(self, n: int = 512) -> List[int]:
         deltas = []
         for i in range(n):
-            stride = self.PRIMES[i & 7]
+            stride = self.PAGE_CROSSING_PRIMES[i & 7]
             t0 = time.perf_counter_ns()
             for _ in range(64):
                 self._idx = (self._idx + stride) % len(self.buf)
+                # Read + write forces cache line fetch
                 self.buf[self._idx] ^= 0xAA
+                # Also read near page boundary (±3 bytes from 4KB edge)
+                boundary_idx = (self._idx | 0xFFD) % len(self.buf)
+                self.buf[boundary_idx] ^= 0x55
             t1 = time.perf_counter_ns()
             d = t1 - t0
             if d > 0:

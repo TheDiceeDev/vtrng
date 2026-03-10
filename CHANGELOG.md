@@ -3,7 +3,7 @@
 All notable changes to VTRNG are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.5.0] — 2026-03
+## [0.5.0] - 2026-03-
 
 ### Added
 - PyPI package: `pip install vtrng`

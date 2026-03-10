@@ -2,7 +2,7 @@
 # Run dieharder against VTRNG output
 # Usage: ./scripts/run_dieharder.sh [size_mb]
 
-SIZE_MB=${1:-20}
+SIZE_MB=${1:-2048}
 DATA_FILE="/tmp/vtrng_dieharder.bin"
 REPORT="vtrng_dieharder_report.txt"
 

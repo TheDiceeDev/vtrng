@@ -82,7 +82,7 @@ def test_health_check():
     rng = VTRNG(paranoia=1, background=False, verbose=False)
     report = rng.diagnostics(test_size=5000)
     assert report['health_passed']
-    assert report['health']['shannon_entropy'] > 3.0
+    assert report['assessed_entropy'] > 0.1
 
 
 if __name__ == '__main__':

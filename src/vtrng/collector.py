@@ -77,7 +77,7 @@ class EntropyCollector:
                         if mem_conditioned:
                             self.pool.mix_in(mem_conditioned)
 
-                # Success — reset failure counter
+                # Success - reset failure counter
                 with self._lock:
                     self._collections += 1
                     self._consecutive_failures = 0
