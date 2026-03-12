@@ -475,7 +475,7 @@ class VTRNG:
                   f"{'Native (GIL-free)' if self._threads.is_native else 'Python (GIL)'}")
 
         # C extension info
-        if self.F is not None:
+        if self._fast is not None:
             try:
                 pinfo = self._fast.platform_info()
                 print(f"\n  C Extension:")
