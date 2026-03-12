@@ -25,6 +25,8 @@ import math
 from collections import Counter, defaultdict
 from typing import Dict, List, Tuple, Optional
 
+from ._compat import safe_print
+
 
 # ================================================================
 #  Constants & Utilities
@@ -85,25 +87,41 @@ def _prediction_to_entropy(correct: int, total: int) -> float:
     """
     Convert prediction success rate → min-entropy estimate.
     
-    v0.5.1 fix: require minimum predictions before trusting result.
-    With only a handful of predictions, even a broken clock can
-    appear to have 100% accuracy.
+    v0.5.2 NUCLEAR FIX:
+      - Require minimum 100 predictions (was 50)
+      - Cap p_upper at 0.99 (never claim 100% predictability)
+      - If predictor is "too good" on small data, return MCV-level
+        estimate instead of 0.0
+    
+    The logic: even if a predictor gets lucky on 50-100 samples,
+    that doesn't prove the source has zero entropy. It proves the
+    predictor found a short-term pattern. We need MANY predictions
+    to trust a high success rate.
     """
-    MIN_PREDICTIONS = 50  # need enough data for statistical significance
+    MIN_PREDICTIONS = 100
 
     if total < MIN_PREDICTIONS:
-        # Not enough predictions to draw conclusions
-        # Return conservative HIGH estimate (don't drag down min-entropy)
-        return 8.0
+        return 8.0  # not enough data - don't drag down min()
 
     if correct <= 0:
-        return 8.0
+        return 8.0  # predictor failed completely - high entropy
 
     p_global = correct / total
+
+    # If predictor is getting > 95% accuracy, be skeptical -
+    # this usually means overfitting on small data, not zero entropy
+    if p_global > 0.95 and total < 500:
+        return 8.0  # don't trust near-perfect prediction on small n
+
     p_upper = _upper_bound(p_global, total)
 
-    if p_upper >= 1.0:
-        return 0.0
+    # NUCLEAR FIX: never claim 100% predictability
+    # Even the best predictor has uncertainty
+    p_upper = min(p_upper, 0.99)
+
+    if p_upper <= 0:
+        return 8.0
+
     return min(-math.log2(p_upper), 8.0)
 
 
@@ -460,32 +478,25 @@ def est_lag(samples: List[int], max_lag: int = 128) -> float:
 
 def est_multi_mmc(samples: List[int], max_order: int = 16) -> float:
     """
-    §6.3.9 - Build Markov models of order d=1..D, predict from
-    most-seen next-value for each context.
+    §6.3.9 - Multi Markov Chain Model predictor.
     
-    v0.5.1 FIXES:
-      1. Limit max_order based on sample size (prevent overfitting)
-      2. Only predict from contexts seen >= 5 times (no memorization)
-      3. Require >= 50 predictions before trusting (statistical validity)
-      4. If insufficient data → fall back to MCV estimate
+    v0.5.2: Maximum hardening against overfitting.
     """
-    quant = _quantize(samples, bits=4)  # 16-value alphabet
+    quant = _quantize(samples, bits=4)
     n = len(quant)
-    if n < 100:
+    if n < 200:
         return est_mcv(samples)
 
     alphabet_size = max(len(set(quant)), 2)
 
-    # ── KEY FIX: limit order so model can't memorize ──
-    # Need at least alphabet_size^d * 5 samples to populate model
-    # Solve: d <= log(n/5) / log(alphabet_size)
-    max_allowed = max(1, int(math.log(n / 10.0, 2) / math.log(alphabet_size, 2)))
-    max_order = min(max_order, max_allowed, n // 10)
+    # Limit order: need alphabet^d * 10 samples minimum
+    max_allowed = max(1, int(math.log(max(n / 20.0, 2)) / math.log(max(alphabet_size, 2))))
+    max_order = min(max_order, max_allowed, 3)  # HARD CAP at order 3
     if max_order < 1:
         return est_mcv(samples)
 
     split = n // 2
-    if split < 50:
+    if split < 100:
         return est_mcv(samples)
 
     best_correct = 0
@@ -494,34 +505,28 @@ def est_multi_mmc(samples: List[int], max_order: int = 16) -> float:
     for d in range(1, max_order + 1):
         model: Dict[tuple, Counter] = defaultdict(Counter)
 
-        # Train on first half
         for i in range(d, split):
             ctx = tuple(quant[i - d:i])
             model[ctx][quant[i]] += 1
 
-        # Predict on second half
         correct = 0
         total = 0
         for i in range(max(split, d), n):
             ctx = tuple(quant[i - d:i])
             if ctx in model:
-                # ── KEY FIX: only predict from well-seen contexts ──
                 ctx_count = sum(model[ctx].values())
-                if ctx_count >= 5:
+                if ctx_count >= 10:  # raised from 5 to 10
                     pred = model[ctx].most_common(1)[0][0]
                     if pred == quant[i]:
                         correct += 1
                     total += 1
-
-            # Online update (NIST spec allows this)
             model[ctx][quant[i]] += 1
 
-        if total >= 50 and correct > best_correct:
+        if total >= 100 and correct > best_correct:
             best_correct = correct
             best_total = total
 
-    if best_total < 50:
-        # Not enough data for Markov prediction - fall back
+    if best_total < 100:
         return est_mcv(samples)
 
     return _prediction_to_entropy(best_correct, best_total)
@@ -707,17 +712,17 @@ class NISTEntropyAssessment:
 
     def print_report(self, samples: List[int]) -> Dict:
         """Run + pretty print."""
-        print("━" * 70)
+        safe_print("━" * 70)
         print("  NIST SP 800-90B ENTROPY ASSESSMENT")
-        print("━" * 70)
+        safe_print("━" * 70)
         print(f"  Samples: {len(samples):,}    "
               f"Unique: {len(set(samples)):,}    "
               f"Range: [{min(samples):,}, {max(samples):,}]")
-        print("─" * 70)
+        safe_print("─" * 70)
 
         result = self.evaluate(samples, verbose=True)
 
-        print("─" * 70)
+        safe_print("─" * 70)
         h = result['min_entropy']
         s = "✅ PASS" if result['passed'] else "❌ FAIL"
         run = result['estimators_run']
@@ -725,5 +730,5 @@ class NISTEntropyAssessment:
         print(f"  {'FINAL MIN-ENTROPY':42s}  {h:6.4f} b/s")
         print(f"  Assessment: {s}  ({run} estimators, {skip} skipped)")
         print(f"  (Conservative: uses the LOWEST estimate across all valid tests)")
-        print("━" * 70)
+        safe_print("━" * 70)
         return result

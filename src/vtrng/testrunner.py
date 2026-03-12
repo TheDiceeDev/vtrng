@@ -18,6 +18,7 @@ from typing import Dict, List, Optional
 
 from .export import RandomExporter
 from .sp800_22 import SP800_22Suite
+from ._compat import safe_print
 
 
 class TestRunner:
@@ -86,6 +87,7 @@ class TestRunner:
         self,
         size_mb: float = 2048.0,
         tests: str = '-a',
+        timeout_sec: int = 7200,
     ) -> Dict:
         """
         Run dieharder test suite.
@@ -93,9 +95,10 @@ class TestRunner:
         Args:
             size_mb: Amount of random data to generate
             tests: dieharder flags (-a for all, -d N for specific test)
+            timeout_sec: Max time to allow for dieharder (default 2 hours)
         """
         if not self.has_dieharder():
-            print("  ⚠️  dieharder not found. Install with:")
+            safe_print("  ⚠️  dieharder not found. Install with:")
             print("      sudo apt install dieharder    # Debian/Ubuntu")
             print("      brew install dieharder         # macOS")
             return {'error': 'dieharder not installed'}
@@ -117,7 +120,7 @@ class TestRunner:
                 ['dieharder', tests, '-g', '201', '-f', data_file],
                 capture_output=True,
                 text=True,
-                # timeout=7200,  # 2 hour max
+                timeout=timeout_sec,  # 2 hour max
             )
 
             output = result.stdout
@@ -137,19 +140,19 @@ class TestRunner:
                 'all_passed': failed == 0,
             }
 
-            print("─" * 72)
+            safe_print("─" * 72)
             icon = '🏆' if failed == 0 else '⚠️'
-            print(f"  {icon}  dieharder: {passed} PASSED, {weak} WEAK, {failed} FAILED")
-            print("─" * 72)
+            safe_print(f"  {icon}  dieharder: {passed} PASSED, {weak} WEAK, {failed} FAILED")
+            safe_print("─" * 72)
 
             self._results['dieharder'] = parsed
             return parsed
 
         except subprocess.TimeoutExpired:
-            print("  ⚠️  dieharder timed out after 1 hour")
+            safe_print("  ⚠️  dieharder timed out after 2 hours. Consider increasing timeout_sec if you have a slow CPU.")
             return {'error': 'timeout'}
         except Exception as e:
-            print(f"  ⚠️  dieharder error: {e}")
+            safe_print(f"  ⚠️  dieharder error: {e}")
             return {'error': str(e)}
 
     # ── ENT ─────────────────────────────────────────────
@@ -159,7 +162,7 @@ class TestRunner:
         Run Fourmilab ENT - Entropy/compression analysis.
         """
         if not self.has_ent():
-            print("  ⚠️  ent not found. Install from:")
+            safe_print("  ⚠️  ent not found. Install from:")
             print("      https://www.fourmilab.ch/random/")
             print("      sudo apt install ent    # some distros")
             return {'error': 'ent not installed'}
@@ -219,7 +222,7 @@ class TestRunner:
             return parsed
 
         except Exception as e:
-            print(f"  ⚠️  ent error: {e}")
+            safe_print(f"  ⚠️  ent error: {e}")
             return {'error': str(e)}
 
     # ── Run All ─────────────────────────────────────────
@@ -234,15 +237,15 @@ class TestRunner:
         Run every available test suite.
         This is the BIG test. Could take 30+ minutes with dieharder.
         """
-        print("╔" + "═" * 70 + "╗")
-        print("║" + "  VTRNG COMPLETE STATISTICAL CERTIFICATION".center(70) + "║")
-        print("╚" + "═" * 70 + "╝")
+        safe_print("╔" + "═" * 70 + "╗")
+        safe_print("║" + "  VTRNG COMPLETE STATISTICAL CERTIFICATION".center(70) + "║")
+        safe_print("╚" + "═" * 70 + "╝")
 
         tools = self.detect_tools()
         print("\n  Available test suites:")
         for tool, available in tools.items():
             icon = '✅' if available else '❌'
-            print(f"    {icon}  {tool}")
+            safe_print(f"    {icon}  {tool}")
         print()
 
         t0 = time.perf_counter()
@@ -259,9 +262,9 @@ class TestRunner:
         elapsed = time.perf_counter() - t0
 
         # Final summary
-        print("\n" + "╔" + "═" * 70 + "╗")
-        print("║" + "  CERTIFICATION SUMMARY".center(70) + "║")
-        print("╠" + "═" * 70 + "╣")
+        safe_print("\n" + "╔" + "═" * 70 + "╗")
+        safe_print("║" + "  CERTIFICATION SUMMARY".center(70) + "║")
+        safe_print("╠" + "═" * 70 + "╣")
 
         overall_pass = True
 
@@ -270,7 +273,7 @@ class TestRunner:
             ok = r.get('all_passed', False)
             overall_pass &= ok
             icon = '✅' if ok else '❌'
-            print(f"║  {icon} SP 800-22:  {r.get('passed', 0)}/{r.get('total', 0)} "
+            safe_print(f"║  {icon} SP 800-22:  {r.get('passed', 0)}/{r.get('total', 0)} "
                   f"tests passed".ljust(69) + "║")
 
         if 'ent' in self._results:
@@ -279,7 +282,7 @@ class TestRunner:
             overall_pass &= ent_ok
             icon = '✅' if ent_ok else '❌'
             h = r.get('entropy_per_byte', 0)
-            print(f"║  {icon} ENT:        {h:.4f} bits/byte "
+            safe_print(f"║  {icon} ENT:        {h:.4f} bits/byte "
                   f"(need >7.9)".ljust(69) + "║")
 
         if 'dieharder' in self._results:
@@ -288,17 +291,17 @@ class TestRunner:
                 dh_ok = r.get('all_passed', False)
                 overall_pass &= dh_ok
                 icon = '✅' if dh_ok else '❌'
-                print(f"║  {icon} dieharder:  {r.get('passed', 0)} passed, "
+                safe_print(f"║  {icon} dieharder:  {r.get('passed', 0)} passed, "
                       f"{r.get('weak', 0)} weak, "
                       f"{r.get('failed', 0)} failed".ljust(69) + "║")
 
-        print("╠" + "═" * 70 + "╣")
+        safe_print("╠" + "═" * 70 + "╣")
         if overall_pass:
-            print("║" + "  🏆 VTRNG OUTPUT IS CERTIFIED RANDOM".center(70) + "║")
+            safe_print("║" + "  🏆 VTRNG OUTPUT IS CERTIFIED RANDOM".center(70) + "║")
         else:
-            print("║" + "  ⚠️  SOME TESTS NEED ATTENTION".center(70) + "║")
-        print(f"║  Time: {elapsed:.1f}s".ljust(71) + "║")
-        print("╚" + "═" * 70 + "╝")
+            safe_print("║" + "  ⚠️  SOME TESTS NEED ATTENTION".center(70) + "║")
+        safe_print(f"║  Time: {elapsed:.1f}s".ljust(71) + "║")
+        safe_print("╚" + "═" * 70 + "╝")
 
         self._results['overall'] = {
             'passed': overall_pass,

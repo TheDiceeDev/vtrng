@@ -29,6 +29,8 @@ import math
 from collections import Counter
 from typing import Dict, List, Tuple, Optional
 
+from ._compat import safe_print
+
 
 # ================================================================
 #  Utilities
@@ -888,21 +890,21 @@ class SP800_22Suite:
         """Run all tests and pretty-print results."""
         result = self.run(data)
 
-        print("━" * 72)
+        safe_print("━" * 72)
         print("  NIST SP 800-22 STATISTICAL TEST SUITE")
         print(f"  Data: {len(data):,} bytes ({len(data) * 8:,} bits)")
-        print("━" * 72)
+        safe_print("━" * 72)
 
         for r in result['tests']:
             name = r.get('test', '?')
             section = r.get('section', '')
 
             if r.get('skipped'):
-                print(f"  ⏭️  {name:38s}  SKIPPED ({r['reason']})")
+                safe_print(f"  ⏭️  {name:38s}  SKIPPED ({r['reason']})")
                 continue
 
             if r.get('error') and not r.get('p_value'):
-                print(f"  ⚠️  {name:38s}  ERROR: {r['error']}")
+                safe_print(f"  ⚠️  {name:38s}  ERROR: {r['error']}")
                 continue
 
             p = r.get('p_value', 0)
@@ -913,20 +915,20 @@ class SP800_22Suite:
             bar_len = int(p * 40) if p <= 1.0 else 40
             bar = '█' * bar_len + '░' * (40 - bar_len)
 
-            print(f"  {icon}  {name:38s}  p={p:.6f}  {bar}")
+            safe_print(f"  {icon}  {name:38s}  p={p:.6f}  {bar}")
 
-        print("─" * 72)
+        safe_print("─" * 72)
         p = result['passed']
         f = result['failed']
         s = result['skipped']
         icon = '🏆' if result['all_passed'] else '⚠️'
-        print(f"  {icon}  Results: {p} passed, {f} failed, {s} skipped")
+        safe_print(f"  {icon}  Results: {p} passed, {f} failed, {s} skipped")
         print(f"     Pass rate: {result['pass_rate']:.1%}")
 
         if result['all_passed']:
-            print("  ✅ OUTPUT IS STATISTICALLY INDISTINGUISHABLE FROM RANDOM")
+            safe_print("  ✅ OUTPUT IS STATISTICALLY INDISTINGUISHABLE FROM RANDOM")
         else:
-            print("  ❌ SOME TESTS FAILED - investigate source quality")
+            safe_print("  ❌ SOME TESTS FAILED - investigate source quality")
 
-        print("━" * 72)
+        safe_print("━" * 72)
         return result

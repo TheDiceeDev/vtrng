@@ -12,11 +12,11 @@ Information Security).
 
 ### How is this different from `os.urandom()`?
 
-`os.urandom()` is a CSPRNG seeded from OS entropy — it's excellent
+`os.urandom()` is a CSPRNG seeded from OS entropy, it's excellent
 but opaque. You trust the OS implementation without being able to
 inspect its internal state. VTRNG gives you the complete pipeline
 from physics to output: fully auditable, self-certifying, with
-transparent entropy accounting. It's not about being "better" —
+transparent entropy accounting. It's not about being "better",
 it's about being **transparent**.
 
 ### How is this different from jitterentropy?
@@ -24,9 +24,7 @@ it's about being **transparent**.
 jitterentropy by Stephan Müller proved the principle and got BSI
 certification. VTRNG stands on that research and makes it:
 - **Accessible:** `pip install vtrng` vs C library compilation
-- **Self-certifying:** NIST SP 800-22 + 800-90B tests built in
 - **Multi-source:** 3 independent entropy sources vs 1
-- **Health-monitored:** Refuses to output if quality degrades
 
 We credit jitterentropy as the pioneer. Different tool, same science.
 
@@ -56,7 +54,7 @@ source will fail each test."*
 
 If you run 11 tests: P(at least 1 fails) = 1 - 0.99¹¹ ≈ 10.5%.
 
-A source that NEVER fails is **more suspicious** — it might be
+A source that NEVER fails is **more suspicious** - it might be
 detecting and gaming the test. See the
 [Certification page](certification.md) for details.
 
@@ -87,7 +85,7 @@ doesn't expose core ID), but all samples are kept and conditioned.
 
 The C extension releases the GIL during sampling using
 `Py_BEGIN_ALLOW_THREADS`. Thread races use native OS threads
-(pthreads on Linux/Mac, Win32 threads on Windows) — completely
+(pthreads on Linux/Mac, Win32 threads on Windows) - completely
 bypassing the GIL. The Python fallback thread race uses
 GIL-mediated scheduling jitter, which is weaker but still
 contributes supplementary entropy.

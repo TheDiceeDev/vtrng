@@ -4,18 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vtrng"
-version = "0.5.2"
+version = "0.5.3"
 description = "Very True Random Number Generator, pure-software TRNG from CPU jitter physics"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 authors = [
-    {name = "TheDicee Devs"}
+    {name = "TheDicee Devs", email="thediceedeveloper@gmail.com"}
 ]
 keywords = [
     "random", "trng", "rng", "entropy", "jitter",
     "cryptography", "security", "nist", "randomness",
-    "true-random", "cpu-jitter",
+    "true-random", "cpu-jitter", "very true", "very true rng",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -51,7 +51,7 @@ Homepage = "https://github.com/TheDiceeDev/vtrng"
 Documentation = "https://github.com/TheDiceeDev/vtrng"
 Repository = "https://github.com/TheDiceeDev/vtrng"
 Issues = "https://github.com/TheDiceeDev/vtrng/issues"
-Changelog = "https://github.com/TheDiceeDev/vtrng/issues"
+Changelog = "https://github.com/TheDiceeDev/vtrng"
 
 [project.scripts]
 vtrng = "vtrng.__main__:main"

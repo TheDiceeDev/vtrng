@@ -3,7 +3,7 @@ VTRNG - Very True Random Number Generator
 Pure-software TRNG. NIST SP 800-90B compliant. Statistically certified.
 """
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 from .generator import VTRNG, HealthCheckError
 from .pool import ExtractionPolicy, InsufficientEntropyError
