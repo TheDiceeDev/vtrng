@@ -7,70 +7,65 @@ on:
   workflow_dispatch:
 
 jobs:
-  # -- Build Linux wheels FIRST (fastest, no downloads needed) --
-  build_linux:
-    name: Build Linux wheels
-    runs-on: ubuntu-latest
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
-        env:
-          CIBW_BUILD: cp310-* cp311-* cp312-* cp313-*
-          CIBW_SKIP: pp* *-manylinux_i686 *-musllinux_i686 *-musllinux_x86_64
-          CIBW_ARCHS_LINUX: x86_64
-          CIBW_TEST_COMMAND: >
-            python -c "from vtrng import VTRNG; rng = VTRNG(verbose=False, startup_assessment=False); print(rng.random_hex(16))"
-
-      - uses: actions/upload-artifact@v4
+      # Cache cibuildwheel's downloaded Python installations
+      - name: Cache cibuildwheel
+        uses: actions/cache@v4
         with:
-          name: wheels-linux
-          path: ./wheelhouse/*.whl
+          path: |
+            ~/AppData/Local/pypa/cibuildwheel/Cache
+            ~/Library/Caches/cibuildwheel
+            ~/.cache/cibuildwheel
+          key: cibw-${{ matrix.os }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            cibw-${{ matrix.os }}-
 
-  # -- Build Windows wheels AFTER Linux finishes --
-  build_windows:
-    name: Build Windows wheels
-    runs-on: windows-latest
-    needs: build_linux    # stagger: wait for Linux to finish
-    steps:
-      - uses: actions/checkout@v4
+      # Cache NuGet packages (Windows Python downloads)
+      - name: Cache NuGet (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\.nuget\packages
+          key: nuget-${{ matrix.os }}-python
+          restore-keys: |
+            nuget-${{ matrix.os }}-
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.3
         env:
           CIBW_BUILD: cp310-* cp311-* cp312-* cp313-*
-          CIBW_SKIP: pp* *-win32
+          CIBW_SKIP: pp* *-win32 *-manylinux_i686 *-musllinux_i686 *-musllinux_x86_64
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_ARCHS_WINDOWS: AMD64
           CIBW_ENVIRONMENT: PYTHONIOENCODING=utf-8
+          CIBW_ENVIRONMENT_WINDOWS: PYTHONIOENCODING=utf-8
           CIBW_TEST_COMMAND: >
             python -c "from vtrng import VTRNG; rng = VTRNG(verbose=False, startup_assessment=False); print(rng.random_hex(16))"
+          # Use GitHub token for authenticated downloads (5000 req/hr)
+          CIBW_ENVIRONMENT_PASS_LINUX: GITHUB_TOKEN
+          CIBW_ENVIRONMENT_PASS_WINDOWS: GITHUB_TOKEN
+          CIBW_ENVIRONMENT_PASS_MACOS: GITHUB_TOKEN
+        with:
+          output-dir: wheelhouse
+        # Pass the token to cibuildwheel's subprocesses
+        # This authenticates downloads from github.com
+        # 60 req/hr (unauth) → 5000 req/hr (auth)
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-windows
-          path: ./wheelhouse/*.whl
-
-  # -- Build macOS wheels AFTER Windows finishes --
-  build_macos:
-    name: Build macOS wheels
-    runs-on: macos-latest
-    needs: build_windows   # stagger: wait for Windows to finish
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
-        env:
-          CIBW_BUILD: cp310-* cp311-* cp312-* cp313-*
-          CIBW_SKIP: pp*
-          CIBW_ARCHS_MACOS: x86_64 arm64
-          CIBW_TEST_COMMAND: >
-            python -c "from vtrng import VTRNG; rng = VTRNG(verbose=False, startup_assessment=False); print(rng.random_hex(16))"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos
+          name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
   # -- Source distribution --
@@ -91,7 +86,7 @@ jobs:
   # -- Inspect what we built --
   inspect:
     name: List built packages
-    needs: [build_linux, build_windows, build_macos, build_sdist]
+    needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -104,20 +99,12 @@ jobs:
         run: |
           echo " === VTRNG Built Packages === "
           echo ""
-          echo "--- Wheels ---"
-          for f in dist/*.whl; do
+          for f in dist/*; do
             size=$(du -h "$f" | cut -f1)
             echo "  $size  $(basename $f)"
           done
           echo ""
-          echo "--- Source ---"
-          for f in dist/*.tar.gz; do
-            size=$(du -h "$f" | cut -f1)
-            echo "  $size  $(basename $f)"
-          done
-          echo ""
-          echo "Total wheels: $(ls dist/*.whl 2>/dev/null | wc -l)"
-          echo "Total files:  $(ls dist/* | wc -l)"
+          echo "Total: $(ls dist/* | wc -l) files"
           echo "============================================"
 
   # Publish to TestPyPI

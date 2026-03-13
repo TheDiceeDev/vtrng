@@ -350,7 +350,6 @@ See [CONTRIBUTING.md](/CONTRIBUTING.md). We welcome:
 
 MIT License - see [LICENSE](/LICENCE).
 
-Add a short per-file header in important source files if you prefer:
 
 ```python
 # Copyright (c) 2026 TheDicee Devs
