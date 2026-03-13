@@ -6,10 +6,19 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Ensure the default token has read access to fetch Python binaries
+permissions:
+  contents: read
+
 jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Global environment variables for the whole job
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      HOMEBREW_NO_AUTO_UPDATE: 1
     strategy:
       fail-fast: false
       matrix:
@@ -23,13 +32,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~\AppData\Local\pypa\cibuildwheel\Cache
+            ~\AppData\Local\cibuildwheel\Cache
             ~/Library/Caches/cibuildwheel
             ~/.cache/cibuildwheel
-          key: cibw-${{ matrix.os }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            cibw-${{ matrix.os }}-
-
+          key: cibw-${{ matrix.os }}-v2.21.3
+          
       # Cache NuGet packages (Windows Python downloads)
       - name: Cache NuGet (Windows)
         if: matrix.os == 'windows-latest'
@@ -37,14 +44,11 @@ jobs:
         with:
           path: |
             ~\.nuget\packages
-          key: nuget-${{ matrix.os }}-python
-          restore-keys: |
-            nuget-${{ matrix.os }}-
+          key: nuget-${{ matrix.os }}-v2.21.3
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.3
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CIBW_BUILD: cp310-* cp311-* cp312-* cp313-*
           CIBW_SKIP: pp* *-win32 *-manylinux_i686 *-musllinux_i686 *-musllinux_x86_64
           CIBW_ARCHS_LINUX: x86_64
@@ -112,6 +116,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     environment: testpypi
     permissions:
+      contents: read
       id-token: write
     steps:
       - uses: actions/download-artifact@v4
@@ -124,6 +129,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+
 
   # real pypi implementation
   # publish:
