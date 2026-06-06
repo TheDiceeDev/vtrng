@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~\AppData\Local\cibuildwheel\Cache
+            C:\Users\runneradmin\AppData\Local\pypa\cibuildwheel\Cache
             ~/Library/Caches/cibuildwheel
             ~/.cache/cibuildwheel
           key: cibw-${{ matrix.os }}-v2.21.3
